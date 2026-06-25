@@ -1,0 +1,207 @@
+// ΩNET Terminal Simulation — Full Intrusion + Scan Map + Cracking + Errors
+
+var logs = [];
+var maxLogs = 30;
+var phase = 0;
+var ticks = 0;
+var cursorVisible = true;
+
+textFont(createFont("monospace"));
+var fontSize = 14;
+
+// IP/MAC/DNS Data Generation
+var ipPart = function() { return floor(random(1, 255)); };
+var fakeIP = function() {
+    return ipPart() + "." + ipPart() + "." + ipPart() + "." + ipPart();
+};
+var fakeMAC = function() {
+    var hex = "0123456789ABCDEF";
+    var seg = function() { return hex.charAt(floor(random(16))) + hex.charAt(floor(random(16))); };
+    return seg()+":"+seg()+":"+seg()+":"+seg()+":"+seg()+":"+seg();
+};
+var fakePing = function() { return nf(random(1, 100), 2, 2) + " ms"; };
+var fakeDNS = function() {
+    var domains = ["corpnet", "datastream", "darknode", "gamma.local", "phantom.net"];
+    return domains[floor(random(domains.length))];
+};
+var fakePort = function() {
+    var port = floor(random(20, 10000));
+    var status = random() > 0.6 ? "OPEN" : "CLOSED";
+    return "Port " + port + ": " + status;
+};
+
+var addLog = function(txt) {
+    logs.push(txt);
+    if (logs.length > maxLogs) { logs.shift(); }
+};
+
+// Matrix Overlay
+var matrixLetters = "アィウエオカキクケコサシスセソABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("");
+var columns = floor(width / fontSize);
+var drops = [];
+for (var i = 0; i < columns; i++) {
+    drops[i] = random(height);
+}
+var matrixOverlay = function() {
+    textSize(fontSize);
+    for (var i = 0; i < drops.length; i++) {
+        var char = matrixLetters[floor(random(matrixLetters.length))];
+        fill(0, 255, 0, 180);
+        text(char, i * fontSize, drops[i]);
+        drops[i] += fontSize;
+        if (drops[i] > height && random() > 0.975) { drops[i] = 0; }
+    }
+};
+
+// Glitch Effect
+var glitch = function() {
+    fill(random(100, 255), 0, random(100, 255), 40);
+    noStroke();
+    for (var i = 0; i < 10; i++) {
+        rect(random(width), random(height), random(10, 30), random(1, 4));
+    }
+};
+
+// Radar Map
+var radarSweepAngle = 0;
+var drawRadar = function(x, y, r) {
+    noFill();
+    stroke(0, 255, 0, 80);
+    ellipse(x, y, r*2, r*2);
+    ellipse(x, y, r*1.5, r*1.5);
+    ellipse(x, y, r, r);
+    stroke(0, 255, 0);
+    var endX = x + cos(radarSweepAngle) * r;
+    var endY = y + sin(radarSweepAngle) * r;
+    line(x, y, endX, endY);
+    radarSweepAngle += 0.05;
+    for (var i = 0; i < 10; i++) {
+        var px = x + cos(random(0, TWO_PI)) * random(10, r);
+        var py = y + sin(random(0, TWO_PI)) * random(10, r);
+        fill(0, 255, 0, 180);
+        noStroke();
+        ellipse(px, py, 3, 3);
+    }
+};
+
+// Auto-Typing Command Execution
+var typingText = "inject --socket /ΩNET/override -flags stealth -auth root:crack\nconnecting...\nsuccess.\n";
+var typedChars = 0;
+var currentLine = "";
+
+var typeNext = function() {
+    if (typedChars < typingText.length) {
+        var c = typingText.charAt(typedChars);
+        if (c === "\n") {
+            logs.push(currentLine);
+            currentLine = "";
+        } else {
+            currentLine += c;
+        }
+        typedChars++;
+    }
+};
+
+// Error Injection
+var errorStack = [
+    "Exception in thread 'root-access' java.net.SocketTimeoutException: Read timed out",
+    "at net.ΩNET.handler.Core.read(Core.java:101)",
+    "at net.ΩNET.layer.Injector.start(Injector.java:72)",
+    "Caused by: java.lang.SecurityException: Unauthorized attempt detected",
+    "at net.ΩNET.firewall.Fuse.trigger(Fuse.java:49)",
+    ">>> CONNECTION UNSTABLE - SIGNAL INTERFERENCE <<<"
+];
+
+// Login Cracking Simulation
+var passwordChars = "abcdefghijklmnopqrstuvwxyz0123456789";
+var cracked = "";
+var crackTarget = "r00taccess";
+var crackProgress = 0;
+
+var simulateCrack = function() {
+    cracked = crackTarget.substring(0, crackProgress);
+    cracked += passwordChars.charAt(floor(random(passwordChars.length)));
+    addLog("CRACK>> trying '" + cracked + "'");
+    if (random() > 0.8) {
+        crackProgress++;
+    }
+    if (crackProgress >= crackTarget.length) {
+        addLog("CRACK>> SUCCESS: password = '" + crackTarget + "'");
+        phase++;
+    }
+};
+
+// Draw Loop
+draw = function() {
+    background(0);
+    fill(0, 255, 0);
+    textSize(fontSize);
+
+    // Matrix overlay & glitch
+    matrixOverlay();
+    if (random() > 0.96) { glitch(); }
+
+    // Radar display (small map)
+    pushMatrix();
+    translate(width - 120, 120);
+    drawRadar(0, 0, 60);
+    popMatrix();
+
+    // Display logs
+    for (var i = 0; i < logs.length; i++) {
+        text(logs[i], 10, 25 + i * 18);
+    }
+    text(currentLine, 10, 25 + logs.length * 18);
+
+    // Blinking cursor
+    if (frameCount % 60 < 30) {
+        text("_", 10 + textWidth(currentLine), 25 + logs.length * 18);
+    }
+
+    // Tick timing
+    ticks++;
+
+    // PHASE CONTROL
+    if (phase === 0 && ticks % 10 === 0) {
+        addLog("BOOT>> Initializing kernel modules...");
+        if (logs.length > 5) { phase++; }
+    }
+    else if (phase === 1 && ticks % 10 === 0) {
+        addLog("BOOT>> Loading intrusion stack [OK]");
+        if (logs.length > 9) { phase++; }
+    }
+    else if (phase === 2 && ticks % 5 === 0) {
+        var ip = fakeIP(), mac = fakeMAC(), ping = fakePing();
+        addLog("SCAN>> " + ip + " [" + mac + "] ping=" + ping);
+        if (logs.length > 14) { phase++; }
+    }
+    else if (phase === 3 && ticks % 8 === 0) {
+        addLog("DNS>> " + fakeDNS() + " resolved.");
+        if (logs.length > 18) { phase++; }
+    }
+    else if (phase === 4 && ticks % 5 === 0) {
+        addLog("PORT>> " + fakePort());
+        if (logs.length > 22) { phase++; }
+    }
+    else if (phase === 5 && ticks % 15 === 0) {
+        simulateCrack();
+    }
+    else if (phase === 6 && ticks % 3 === 0) {
+        typeNext();
+        if (typedChars >= typingText.length) {
+            phase++;
+        }
+    }
+    else if (phase === 7 && ticks % 12 === 0) {
+        var err = errorStack.shift();
+        if (err) {
+            addLog(err);
+        } else {
+            phase++;
+        }
+    }
+    else if (phase === 8 && ticks % 30 === 0) {
+        addLog("ΩNET>> SESSION TERMINATED :: TRACE PURGED :: EXITING...");
+    }
+};
+
